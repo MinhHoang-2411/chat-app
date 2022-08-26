@@ -1,4 +1,9 @@
-import React, {useState} from "react";
+import React, {
+  KeyboardEventHandler,
+  MouseEventHandler,
+  useRef,
+  useState,
+} from "react";
 import {Conversation, IMessage} from "./../types/index";
 import {useRecipient} from "./../hooks/useRecipient";
 import styled from "styled-components";
@@ -74,6 +79,10 @@ const StyledInput = styled.input`
   margin: 0 15px;
 `;
 
+const EndOfMessageForAutoScroll = styled.div`
+  margin-bottom: 30px;
+`;
+
 const ConversationScreen = ({
   conversation,
   messages,
@@ -105,6 +114,7 @@ const ConversationScreen = ({
     return null;
   };
   const addMessageToDbAndUpdateLastSeen = async () => {
+    //update lastSeen
     await setDoc(
       doc(db, "users", loggedInUser?.email as string),
       {
@@ -112,30 +122,37 @@ const ConversationScreen = ({
       },
       {merge: true}
     );
+    //add new mess
     await addDoc(collection(db, "messages"), {
       conversation_id: conversationId,
       sent_at: serverTimestamp(),
       text: newMessage,
       user: loggedInUser?.email,
     });
+    //scroll & reset input
+    scrollToBottom();
     setNewMessage("");
   };
-  const sendMessageOnEnter: React.KeyboardEventHandler<HTMLInputElement> = (
-    e
-  ) => {
+  const sendMessageOnEnter: KeyboardEventHandler<HTMLInputElement> = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
       if (!newMessage) return;
       addMessageToDbAndUpdateLastSeen();
     }
   };
-  const sendMessageOnClick: React.MouseEventHandler<HTMLButtonElement> = (
-    e
-  ) => {
-    e.preventDefault();
+  const sendMessageOnClick: MouseEventHandler<HTMLButtonElement> = (e) => {
     if (!newMessage) return;
     addMessageToDbAndUpdateLastSeen();
   };
+
+  const endOfMessagesRef = useRef<HTMLDivElement>(null);
+  const scrollToBottom = () => {
+    endOfMessagesRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  };
+
   return (
     <>
       <StyledRecipientHeader>
@@ -155,7 +172,10 @@ const ConversationScreen = ({
       </StyledRecipientHeader>
 
       {/* Show Message  */}
-      <StyledMessageContainer>{showMessages()}</StyledMessageContainer>
+      <StyledMessageContainer>
+        {showMessages()}
+        <EndOfMessageForAutoScroll ref={endOfMessagesRef} />
+      </StyledMessageContainer>
 
       {/* Input */}
       <StyledInputContainer>
